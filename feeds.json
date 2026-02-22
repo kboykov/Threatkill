@@ -1120,7 +1120,7 @@
         "name": "projecthoneypot_http_bl",
         "url": "https://www.projecthoneypot.org/list_of_ips.php?rss=1",
         "description": "Project Honey Pot HTTP:BL",
-        "regex": "<title>([0-9.]+)</title>",
+        "regex": "<title>([0-9a-fA-F:.]+)(?:\\s*\\||</title>)",
         "base_score": 0.75,
         "confidence": 0.85,
         "flags": ["is_spammer"],

@@ -4,6 +4,7 @@ import ipaddress
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
+import struct
 import re
 
 
@@ -63,11 +64,21 @@ def download_all_feeds(sources):
     return feeds
 
 
+def write_varint(f, value):
+    while True:
+        byte = value & 0x7F
+        value >>= 7
+        if value != 0:
+            byte |= 0x80
+        f.write(bytes([byte]))
+        if value == 0:
+            break
+
+
 def process_feeds(feeds):
     processed = {}
     for list_name, ip_strings in feeds.items():
-        addresses = []
-        networks = []
+        ranges = []
 
         for ip_str in ip_strings:
             if not ip_str:
@@ -77,7 +88,7 @@ def process_feeds(feeds):
                 try:
                     start = int(parts[0])
                     end = int(parts[1])
-                    networks.append([start, end])
+                    ranges.append((start, end))
                     continue
                 except ValueError:
                     pass
@@ -87,14 +98,13 @@ def process_feeds(feeds):
             if isinstance(parsed, (ipaddress.IPv4Network, ipaddress.IPv6Network)):
                 start = int(parsed.network_address)
                 end = int(parsed.broadcast_address)
-                networks.append([start, end])
+                ranges.append((start, end))
             elif isinstance(parsed, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
-                addresses.append(int(parsed))
+                addr = int(parsed)
+                ranges.append((addr, addr))
 
-        addresses = sorted(set(addresses))
-        networks = sorted(set(tuple(network) for network in networks))
-        networks = [list(network) for network in networks]
-        processed[list_name] = {"addresses": addresses, "networks": networks}
+        ranges = sorted(set(ranges))
+        processed[list_name] = ranges
     return processed
 
 
@@ -108,11 +118,27 @@ def main():
     print("Processing feeds...")
     processed = process_feeds(feeds)
 
-    timestamp = int(time.time())
-    output = {"timestamp": timestamp, "feeds": processed}
-    with open("blocklist.json", "w") as file:
-        json.dump(output, file, separators=(",", ":"))
-    print(f"Saved blocklist.json with {len(processed)} feeds")
+    with open("blocklist.bin", "wb") as f:
+        f.write(struct.pack("<I", int(time.time())))
+        f.write(struct.pack("<H", len(processed)))
+
+        for list_name, ranges in processed.items():
+            name_bytes = list_name.encode("utf-8")
+            f.write(struct.pack("<B", len(name_bytes)))
+            f.write(name_bytes)
+            f.write(struct.pack("<I", len(ranges)))
+
+            prev_from = 0
+            for start, end in ranges:
+                from_delta = start - prev_from
+                range_size = end - start
+
+                write_varint(f, from_delta)
+                write_varint(f, range_size)
+
+                prev_from = start
+
+    print(f"Saved blocklist.bin with {len(processed)} feeds")
 
 
 if __name__ == "__main__":
