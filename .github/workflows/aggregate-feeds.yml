@@ -30,16 +30,16 @@ jobs:
           TAG_NAME="v$(date -u +%Y%m%d-%H%M%S)"
 
           gh release create "$TAG_NAME" \
-            blocklist.json \
+            blocklist.bin \
             --title "Blocklist Update - $TIMESTAMP" \
             --notes "Automated blocklist update from threat intelligence feeds.
 
           **Files:**
-          - \`blocklist.json\` - Threat intelligence data
+          - \`blocklist.bin\` - Threat intelligence data (binary format)
 
           **Download:**
           \`\`\`bash
-          wget https://github.com/tn3w/IPBlocklist/releases/download/$TAG_NAME/blocklist.json
+          wget https://github.com/tn3w/IPBlocklist/releases/download/$TAG_NAME/blocklist.bin
           \`\`\`"
 
       - name: Cleanup old releases
