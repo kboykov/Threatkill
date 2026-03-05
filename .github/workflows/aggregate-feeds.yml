@@ -46,14 +46,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASES=$(gh release list --limit 100 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | .[].tagName')
+          RELEASES_JSON=$(gh release list --limit 100 --json tagName,createdAt)
+          TAGS=($(echo "$RELEASES_JSON" | jq -r 'sort_by(.createdAt) | .[].tagName'))
+          TOTAL=${#TAGS[@]}
+          KEEP=3
 
-          COUNT=0
-          for TAG in $RELEASES; do
-            COUNT=$((COUNT + 1))
-            if [ $COUNT -gt 3 ]; then
-              echo "Deleting old release: $TAG"
-              gh release delete "$TAG" --yes 2>/dev/null || true
-              git push --delete origin "$TAG" 2>/dev/null || true
-            fi
+          if [ "$TOTAL" -le "$KEEP" ]; then
+            echo "No releases to delete (total $TOTAL, keeping $KEEP)."
+            exit 0
+          fi
+
+          DELETE_COUNT=$((TOTAL - KEEP))
+          echo "Deleting $DELETE_COUNT old release(s), keeping $KEEP newest."
+
+          for i in $(seq 0 $((DELETE_COUNT - 1))); do
+            TAG=${TAGS[$i]}
+            echo "Deleting old release: $TAG"
+            gh release delete "$TAG" --yes 2>/dev/null || true
+            git push --delete origin "$TAG" 2>/dev/null || true
           done
