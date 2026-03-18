@@ -31,15 +31,39 @@ jobs:
 
           gh release create "$TAG_NAME" \
             blocklist.bin \
-            --title "Blocklist Update - $TIMESTAMP" \
-            --notes "Automated blocklist update from threat intelligence feeds.
+            attacks.ipset \
+            malware.ipset \
+            botnet.ipset \
+            anonymizer.ipset \
+            spam.ipset \
+            compromised.ipset \
+            infrastructure.ipset \
+            --title "Threatkill Update — $TIMESTAMP" \
+            --notes "## Automated threat intelligence update
 
-          **Files:**
-          - \`blocklist.bin\` - Threat intelligence data (binary format)
+          **Timestamp:** $TIMESTAMP
+          **Feeds:** 128 sources processed
 
-          **Download:**
+          ### Assets
+
+          | File | Description |
+          |---|---|
+          | \`blocklist.bin\` | Full binary database (all feeds, delta-encoded) |
+          | \`attacks.ipset\` | Scanners, brute-force, web attackers |
+          | \`malware.ipset\` | Malware C2, exploit hosts, phishing |
+          | \`botnet.ipset\` | Botnet command & control nodes |
+          | \`anonymizer.ipset\` | Tor nodes, VPN servers, open proxies |
+          | \`spam.ipset\` | Spam networks and forum abusers |
+          | \`compromised.ipset\` | Compromised and hijacked hosts |
+          | \`infrastructure.ipset\` | Datacenters, CDNs, cloud providers |
+
+          ### Quick download
+
           \`\`\`bash
-          wget https://github.com/tn3w/IPBlocklist/releases/download/$TAG_NAME/blocklist.bin
+          BASE=https://github.com/kboykov/Threatkill/releases/latest/download
+          wget \$BASE/attacks.ipset
+          wget \$BASE/malware.ipset
+          wget \$BASE/blocklist.bin
           \`\`\`"
 
       - name: Cleanup old releases
