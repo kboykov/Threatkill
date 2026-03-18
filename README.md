@@ -1,18 +1,19 @@
 <div align="center">
 
-# 🔒 IPBlocklist
+# 🔒 Threatkill
 
-Threat intelligence aggregator that collects, processes, and serves IP reputation data from 127 security feeds into an optimized binary format for fast lookups.
+Threat intelligence aggregator that collects, processes, and serves IP reputation data from 128 security feeds into optimized category ipset files and a binary format for fast lookups.
 
 <p align="center">
-<img src="https://img.shields.io/github/actions/workflow/status/tn3w/IPBlocklist/aggregate-feeds.yml?label=Build&style=for-the-badge" alt="GitHub Workflow Status">
+<img src="https://img.shields.io/github/actions/workflow/status/kboykov/Threatkill/aggregate-feeds.yml?label=Build&style=for-the-badge" alt="GitHub Workflow Status">
+<img src="https://img.shields.io/badge/feeds-128-blue?style=for-the-badge" alt="Feed Count">
 <img src="https://img.shields.io/badge/dataset-5.0M_entries-blue?style=for-the-badge" alt="Dataset Size">
 <img src="https://img.shields.io/badge/IPs-4.4M-green?style=for-the-badge" alt="Individual IPs">
 <img src="https://img.shields.io/badge/ranges-552K-orange?style=for-the-badge" alt="CIDR Ranges">
 </p>
 
 <p align="center">
-<a href="https://github.com/tn3w/IPBlocklist/releases/latest/download/blocklist.bin"><img src="https://img.shields.io/badge/download-blocklist.bin_(12MB)-red?style=for-the-badge&logo=download&logoColor=white" alt="Download Threat Data"></a>
+<a href="https://github.com/kboykov/Threatkill/releases/latest/download/blocklist.bin"><img src="https://img.shields.io/badge/download-blocklist.bin_(12MB)-red?style=for-the-badge&logo=download&logoColor=white" alt="Download Threat Data"></a>
 </p>
 
 </div>
@@ -20,61 +21,90 @@ Threat intelligence aggregator that collects, processes, and serves IP reputatio
 ## 🚀 Key Features
 
 - ✅ Fast IP lookups in <1ms using binary search
-- ✅ 5.0M+ IPs and CIDR ranges from 127 threat intelligence feeds
+- ✅ 5.0M+ IPs and CIDR ranges from 128 threat intelligence feeds
 - ✅ Malware C&C servers, botnets, spam networks, compromised hosts
 - ✅ VPN providers, Tor nodes, datacenter/hosting ASNs
-- ✅ Optimized integer storage for minimal memory footprint
+- ✅ Per-category ipset files for direct firewall integration
+- ✅ Optimized binary format with delta encoding for minimal memory footprint
 - ✅ Support for both IPv4 and IPv6
 - ✅ Automated daily updates via GitHub Actions
 
-## 📥 Download & Extract
+## 📥 Downloads
 
-The dataset is available as a downloadable binary file.
+### Binary Blocklist
 
-### Threat Intelligence Data
-
-The threat intelligence dataset is approximately 12MB.
+Full dataset in delta-encoded binary format (~12MB), suitable for programmatic lookups across all 128 feeds.
 
 ```bash
-# Download the file
-wget https://github.com/tn3w/IPBlocklist/releases/latest/download/blocklist.bin
+wget https://github.com/kboykov/Threatkill/releases/latest/download/blocklist.bin
+```
 
-# Verify the file
-ls -lh blocklist.bin
+### Category ipset Files
+
+Individual plain-text ipset files, one per threat category. Each file contains deduplicated, merged CIDR ranges from all feeds tagged with that category.
+
+| File | Description |
+|---|---|
+| `attacks.ipset` | Scanners, brute-force attackers, web attackers |
+| `malware.ipset` | Malware C&C servers, exploit hosts, phishing |
+| `botnet.ipset` | Botnet command & control infrastructure |
+| `anonymizer.ipset` | Tor nodes, VPN servers, open proxies |
+| `spam.ipset` | Spammers and forum spam networks |
+| `compromised.ipset` | Compromised/hijacked hosts |
+| `infrastructure.ipset` | Datacenters, CDNs, cloud providers |
+
+```bash
+# Example: download the attacks ipset
+wget https://github.com/kboykov/Threatkill/releases/latest/download/attacks.ipset
+
+# Load directly into Linux ipset
+ipset create threatkill_attacks hash:net
+ipset restore < attacks.ipset
 ```
 
 ## 📊 Architecture
 
 ```
 feeds.json ──────────> aggregator.py ──────────> blocklist.bin
-  (config)              (processor)              (threat intel)
+  (128 feeds)           (processor)              (binary, all feeds)
+                             │
+                             └──────────────────> attacks.ipset
+                                                  malware.ipset
+                                                  botnet.ipset
+                                                  anonymizer.ipset
+                                                  spam.ipset
+                                                  compromised.ipset
+                                                  infrastructure.ipset
 ```
 
 ## 📖 Overview
 
-IPBlocklist downloads threat intelligence from multiple sources (malware C&C servers, botnets, spam networks, VPN providers, Tor nodes, etc.) and converts them into a compact, searchable binary format. IP addresses and CIDR ranges are stored as delta-encoded integers for efficient binary search lookups.
+Threatkill downloads threat intelligence from 128 sources (malware C&C servers, botnets, spam networks, VPN providers, Tor nodes, AbuseIPDB, etc.) and processes them into two output formats:
 
-The system uses open-source security feeds configured in feeds.json, which are processed by aggregator.py into a unified blocklist.bin file.
+1. **`blocklist.bin`** — a compact binary file with delta-encoded integer ranges for fast programmatic lookups across all feeds
+2. **`<category>.ipset` files** — plain-text CIDR lists grouped by threat category for direct use with firewall tools like `ipset`, `nftables`, or `iptables`
+
+IP addresses and CIDR ranges are stored as sorted, merged integer ranges. The category ipset files deduplicate and merge overlapping ranges across all feeds that share a category tag.
 
 ## 📁 Data Models
 
 ### feeds.json
 
-Configuration file defining all threat intelligence sources. Each feed is an independent object with complete metadata.
+Configuration file defining all 128 threat intelligence sources. Each feed is an independent object with complete metadata.
 
 **Structure**: Array of feed objects
 
 ```json
 [
     {
-        "name": "feodotracker",
-        "url": "https://feodotracker.abuse.ch/downloads/ipblocklist.txt",
-        "description": "Feodo Tracker - Botnet C&C",
+        "name": "abuseipdb_s100",
+        "url": "https://raw.githubusercontent.com/borestad/blocklist-abuseipdb/refs/heads/main/abuseipdb-s100-120d.ipv4",
+        "description": "AbuseIPDB 100% confidence abusers (120 days)",
         "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 1.0,
-        "confidence": 0.95,
-        "flags": ["is_malware", "is_botnet", "is_c2_server"],
-        "categories": ["malware", "botnet"]
+        "base_score": 0.95,
+        "confidence": 1.0,
+        "flags": ["is_scanner"],
+        "categories": ["attacks"]
     }
 ]
 ```
@@ -85,78 +115,79 @@ Configuration file defining all threat intelligence sources. Each feed is an ind
 - `url`: Download URL for the threat list
 - `description`: Human-readable description
 - `regex`: Pattern to extract IPs/CIDRs from feed content
-- `base_score`: Threat severity (0.0-1.0)
-- `confidence`: Data reliability (0.0-1.0)
-- `flags`: Boolean indicators (is_anycast, is_botnet, is_brute_force, is_c2_server, is_cdn, is_cloud, is_compromised, is_datacenter, is_forum_spammer, is_isp, is_malware, is_mobile, is_phishing, is_proxy, is_scanner, is_spammer, is_tor, is_vpn, is_web_attacker)
-- `categories`: Categories for scoring (anonymizer, attacks, botnet, compromised, infrastructure, malware, spam)
+- `base_score`: Threat severity (0.0–1.0)
+- `confidence`: Data reliability (0.0–1.0)
+- `flags`: Boolean threat indicators — `is_anycast`, `is_botnet`, `is_brute_force`, `is_c2_server`, `is_cdn`, `is_cloud`, `is_compromised`, `is_datacenter`, `is_forum_spammer`, `is_malware`, `is_phishing`, `is_proxy`, `is_scanner`, `is_spammer`, `is_tor`, `is_vpn`, `is_web_attacker`
+- `categories`: Threat categories used to group ipset output — `anonymizer`, `attacks`, `botnet`, `compromised`, `infrastructure`, `malware`, `spam`
 
 **Optional Fields**:
 
 - `provider_name`: VPN/hosting provider name
 
-### datacenter_asns.json
-
-List of Autonomous System Numbers (ASNs) associated with datacenter and hosting providers.
-
-**Structure**: Array of ASN strings
-
-```json
-["15169", "16509", "13335", "8075", "14061"]
-```
-
-This file is automatically generated when processing the datacenter_asns feed and can be used for O(1) ASN lookups to identify datacenter traffic.
-
 ### blocklist.bin
 
-Processed binary output with delta-encoded IP ranges for fast lookups.
+Processed binary output containing all 128 feeds with delta-encoded IP ranges.
 
-**Structure**: Binary format with varint encoding
+**Structure**:
 
 ```
-[4 bytes: timestamp (u32)]
-[2 bytes: feed count (u16)]
+[4 bytes: timestamp (u32 LE)]
+[2 bytes: feed count (u16 LE)]
 For each feed:
   [1 byte: name length (u8)]
-  [N bytes: feed name (utf-8)]
-  [4 bytes: range count (u32)]
+  [N bytes: feed name (UTF-8)]
+  [4 bytes: range count (u32 LE)]
   For each range:
-    [varint: from_delta]
-    [varint: range_size]
+    [varint: from_delta (start - previous start)]
+    [varint: range_size (end - start)]
 ```
-
-**Encoding**:
-
-- Timestamp: Unix timestamp as 32-bit unsigned integer
-- Feed names: Length-prefixed UTF-8 strings
-- Ranges: Delta-encoded start positions with varint compression
-- Range size: End - start encoded as varint
 
 **Integer Conversion**:
 
 - IPv4: `10.0.0.1` → `167772161`
 - IPv6: `2001:db8::1` → `42540766411282592856903984951653826561`
 - CIDR: `10.0.0.0/27` → `(167772160, 167772191)` (network to broadcast)
-- Single IP: Stored as range with size 0
+- Single IP: stored as range with size 0
+
+### \<category\>.ipset
+
+Plain-text files, one per category. Ranges from all feeds sharing a category are merged and deduplicated, then converted back to minimal CIDR notation using `ipaddress.summarize_address_range`.
+
+**Format**:
+
+```
+# Category : attacks
+# Generated: 2026-03-18 12:00:00 UTC
+# Entries  : 381042
+1.0.68.149/32
+1.0.138.92/32
+...
+10.0.0.0/8
+```
 
 ## ⚙️ aggregator.py
 
-Downloads and processes all feeds in parallel, handling multiple formats and edge cases.
+Downloads and processes all feeds in parallel, writing both the binary blocklist and category ipset files.
 
-**Features**:
+**Pipeline**:
 
-- Parallel downloads with ThreadPoolExecutor (10 workers)
-- IPv4/IPv6 support with embedded address extraction
-- CIDR range expansion to [start, end] pairs
-- ASN resolution for datacenter and Tor networks
-- Deduplication and sorting for binary search
-- Regex-based parsing for diverse feed formats
+1. Load `feeds.json` and build a `feed → categories` index
+2. Download all feeds in parallel (ThreadPoolExecutor, 10 workers)
+3. Parse each feed line with its configured regex
+4. Convert IPs/CIDRs to `(start_int, end_int)` ranges
+5. Sort and deduplicate ranges per feed → write `blocklist.bin`
+6. Group ranges by category, merge overlapping ranges → write `<category>.ipset`
 
-**Special Handling**:
+**Key Functions**:
 
-- `datacenter_asns`: Resolves ASN numbers to IP ranges via RIPE API
-- `tor_onionoo`: Combines Tor relay list with known Tor ASNs
-- IPv6 mapped addresses: Extracts embedded IPv4 (::ffff:192.0.2.1)
-- 6to4 tunnels: Extracts IPv4 from 2002::/16 addresses
+| Function | Purpose |
+|---|---|
+| `download_all_feeds` | Parallel feed downloads with retry logic |
+| `process_feeds` | Converts IP strings to sorted integer range lists |
+| `merge_ranges` | Merges overlapping/adjacent ranges across feeds |
+| `ranges_to_cidrs` | Converts integer ranges back to CIDR notation |
+| `write_ipset_file` | Writes a category ipset file with header |
+| `write_varint` | Variable-length integer encoder for binary output |
 
 **Usage**:
 
@@ -164,11 +195,11 @@ Downloads and processes all feeds in parallel, handling multiple formats and edg
 python aggregator.py
 ```
 
-**Output**: Creates/updates `blocklist.bin` with all processed feeds and `datacenter_asns.json` with datacenter ASN list
+**Output**: `blocklist.bin` (all feeds, binary) + one `<category>.ipset` per category tag found in `feeds.json`
 
 ## 🐍 Python Lookup Examples
 
-### Database Loader
+### Binary Blocklist Loader
 
 ```python
 import struct
@@ -188,25 +219,16 @@ def read_varint(f) -> int:
 
 def binary_search(ranges: List[Tuple], target: int) -> Optional[int]:
     left, right = 0, len(ranges) - 1
-    best_match = None
-    best_size = float('inf')
-
     while left <= right:
         mid = (left + right) // 2
         start, end = ranges[mid]
-
         if start <= target <= end:
-            size = end - start
-            if size < best_size:
-                best_size = size
-                best_match = mid
-            left = mid + 1
+            return mid
         elif target < start:
             right = mid - 1
         else:
             left = mid + 1
-
-    return best_match
+    return None
 
 
 class BlocklistLoader:
@@ -236,60 +258,14 @@ class BlocklistLoader:
 
     def check_ip(self, ip: str) -> List[str]:
         target = int(ipaddress.ip_address(ip))
-        matches = []
-
-        for feed_name, ranges in self.feeds.items():
-            if binary_search(ranges, target) is not None:
-                matches.append(feed_name)
-
-        return matches
+        return [
+            feed_name for feed_name, ranges in self.feeds.items()
+            if binary_search(ranges, target) is not None
+        ]
 
 
 blocklist = BlocklistLoader()
-result = blocklist.check_ip("8.8.8.8")
-print(result)
-```
-
-### Batch Lookup
-
-```python
-def check_batch(blocklist: BlocklistLoader, ip_list: List[str]) -> Dict[str, List[str]]:
-    results = {}
-    for ip in ip_list:
-        results[ip] = blocklist.check_ip(ip)
-    return results
-
-
-ips = ["10.0.0.1", "192.168.1.1", "8.8.8.8"]
-results = check_batch(blocklist, ips)
-for ip, feeds in results.items():
-    print(f"{ip}: {feeds}")
-```
-
-### Datacenter ASN Lookup
-
-```python
-import json
-
-def load_datacenter_asns(asn_file="datacenter_asns.json"):
-    """Load datacenter ASNs into a set for O(1) lookups."""
-    try:
-        with open(asn_file) as f:
-            return set(json.load(f))
-    except Exception as e:
-        print(f"Error loading ASNs: {e}")
-        return set()
-
-def is_datacenter_asn(asn, asns=None):
-    """Check if ASN belongs to a datacenter."""
-    if not asns:
-        asns = load_datacenter_asns()
-    return asn.replace("AS", "").strip() in asns
-
-asns = load_datacenter_asns()
-for asn in ["AS16509", "AS13335", "AS15169"]:
-    result = "is" if is_datacenter_asn(asn, asns) else "is not"
-    print(f"{asn} {result} a datacenter ASN")
+print(blocklist.check_ip("8.8.8.8"))
 ```
 
 ### Reputation Scoring
@@ -299,102 +275,92 @@ import json
 
 
 with open("feeds.json") as f:
-    feeds_config = json.load(f)
-
-sources = {feed["name"]: feed for feed in feeds_config}
+    sources = {feed["name"]: feed for feed in json.load(f)}
 
 
-def check_ip_with_reputation(blocklist: BlocklistLoader, ip: str) -> Dict:
+def check_ip_with_reputation(blocklist: BlocklistLoader, ip: str) -> dict:
     matches = blocklist.check_ip(ip)
-
     if not matches:
         return {"ip": ip, "score": 0.0, "feeds": []}
 
     flags = {}
-    scores = {
-        "anonymizer": [], "attacks": [], "botnet": [],
-        "compromised": [], "infrastructure": [], "malware": [], "spam": []
-    }
+    category_scores: Dict[str, List[float]] = {}
 
     for list_name in matches:
         source = sources.get(list_name)
         if not source:
             continue
-
         for flag in source.get("flags", []):
             flags[flag] = True
-
-        provider = source.get("provider_name")
-        if provider:
-            flags["vpn_provider"] = provider
-
-        base_score = source.get("base_score", 0.5)
+        if source.get("provider_name"):
+            flags["vpn_provider"] = source["provider_name"]
         for category in source.get("categories", []):
-            if category in scores:
-                scores[category].append(base_score)
+            category_scores.setdefault(category, []).append(source.get("base_score", 0.5))
 
     total = 0.0
-    for category_scores in scores.values():
-        if not category_scores:
-            continue
+    for scores in category_scores.values():
         combined = 1.0
-        for score in sorted(category_scores, reverse=True):
-            combined *= 1.0 - score
+        for s in sorted(scores, reverse=True):
+            combined *= 1.0 - s
         total += 1.0 - combined
 
-    return {
-        "ip": ip,
-        "score": min(total / 1.5, 1.0),
-        "feeds": matches,
-        **flags
-    }
+    return {"ip": ip, "score": min(total / 1.5, 1.0), "feeds": matches, **flags}
 
 
 result = check_ip_with_reputation(blocklist, "8.8.8.8")
 print(json.dumps(result, indent=2))
 ```
 
+### ipset File Lookup
+
+```python
+import ipaddress
+
+def load_ipset(path: str) -> List[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+    networks = []
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            try:
+                networks.append(ipaddress.ip_network(line, strict=False))
+            except ValueError:
+                pass
+    return networks
+
+def ip_in_ipset(ip: str, networks) -> bool:
+    addr = ipaddress.ip_address(ip)
+    return any(addr in net for net in networks)
+
+attacks = load_ipset("attacks.ipset")
+print(ip_in_ipset("1.0.68.149", attacks))  # True
+```
+
 ## ⚡ Performance Characteristics
 
 **Dataset Statistics**:
 
-- Total feeds: 127
-- Individual IPs: 4.4M (4.4M IPv4, 6k IPv6)
+- Total feeds: 128
+- Individual IPs: ~4.7M (4.4M IPv4 + ~319K from AbuseIPDB + 6K IPv6)
 - CIDR ranges: 552K (545K IPv4, 7K IPv6)
-- Total entries: 5.0M
-- File size: 12MB (compressed with varint encoding)
+- Binary file size: ~12MB (varint delta-encoded)
 
 **Lookup Complexity**:
 
-- Binary search: O(log n) per feed
-- Typical lookup: <1ms for 127 feeds with 5.0M entries
-
-**Memory Usage**:
-
-- Delta encoding: ~2-3 bytes per range (varint compressed)
-- Feed names: Length-prefixed UTF-8 strings
-- Total memory: ~12MB loaded in RAM
+- Binary blocklist: O(log n) per feed, <1ms for all 128 feeds
+- ipset files: direct kernel-space lookup when loaded via `ipset` tool
 
 ## 💡 Use Cases
 
-- **API Rate Limiting**: Block known malicious IPs
-- **Fraud Detection**: Flag VPN/proxy/datacenter traffic
-- **Security Analytics**: Enrich logs with threat intelligence
-- **Access Control**: Restrict Tor exit nodes or anonymizers
-- **Compliance**: Block traffic from sanctioned networks
+- **Firewall Rules**: Load `attacks.ipset` or `malware.ipset` directly into `ipset` / `nftables`
+- **API Rate Limiting**: Block known malicious IPs at the application layer
+- **Fraud Detection**: Flag VPN/proxy/datacenter traffic with `anonymizer.ipset`
+- **Security Analytics**: Enrich logs with threat intelligence from `blocklist.bin`
+- **Access Control**: Restrict Tor exit nodes using `anonymizer.ipset`
+- **Compliance**: Block traffic from sanctioned or high-risk networks
 
 ## 📜 License
 
-Copyright 2025 TN3W
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+Licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
