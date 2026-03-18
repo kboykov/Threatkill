@@ -206,5 +206,6 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Blocklist
+# Generated output files (root-level local runs)
 blocklist.bin
+*.ipset

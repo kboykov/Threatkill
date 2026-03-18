@@ -1,4 +1,5 @@
 import json
+import os
 import time
 import ipaddress
 import urllib.request
@@ -168,7 +169,9 @@ def main():
 
     timestamp = int(time.time())
 
-    with open("blocklist.bin", "wb") as f:
+    os.makedirs("data", exist_ok=True)
+
+    with open("data/blocklist.bin", "wb") as f:
         f.write(struct.pack("<I", timestamp))
         f.write(struct.pack("<H", len(processed)))
 
@@ -188,7 +191,7 @@ def main():
 
                 prev_from = start
 
-    print(f"Saved blocklist.bin with {len(processed)} feeds")
+    print(f"Saved data/blocklist.bin with {len(processed)} feeds")
 
     # Build per-category range sets
     category_ranges = defaultdict(list)
@@ -200,7 +203,7 @@ def main():
     for category, ranges in sorted(category_ranges.items()):
         merged = merge_ranges(ranges)
         cidrs = ranges_to_cidrs(merged)
-        filename = f"{category}.ipset"
+        filename = f"data/{category}.ipset"
         write_ipset_file(filename, category, cidrs, timestamp)
         print(f"Saved {filename} ({len(cidrs)} entries)")
 
