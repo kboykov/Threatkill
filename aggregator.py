@@ -75,6 +75,19 @@ def write_varint(f, value):
             break
 
 
+def merge_ranges(ranges):
+    if not ranges:
+        return []
+    sorted_ranges = sorted(ranges)
+    merged = [list(sorted_ranges[0])]
+    for start, end in sorted_ranges[1:]:
+        if start <= merged[-1][1] + 1:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return [tuple(r) for r in merged]
+
+
 def process_feeds(feeds):
     processed = {}
     for list_name, ip_strings in feeds.items():
@@ -86,9 +99,10 @@ def process_feeds(feeds):
             if "-" in ip_str and ip_str.count("-") == 1:
                 parts = ip_str.split("-")
                 try:
-                    start = int(parts[0])
-                    end = int(parts[1])
-                    ranges.append((start, end))
+                    start = int(ipaddress.ip_address(parts[0].strip()))
+                    end = int(ipaddress.ip_address(parts[1].strip()))
+                    if start <= end:
+                        ranges.append((start, end))
                     continue
                 except ValueError:
                     pass
@@ -103,36 +117,31 @@ def process_feeds(feeds):
                 addr = int(parsed)
                 ranges.append((addr, addr))
 
-        ranges = sorted(set(ranges))
-        processed[list_name] = ranges
+        processed[list_name] = merge_ranges(ranges)
     return processed
 
 
-def merge_ranges(ranges):
-    if not ranges:
-        return []
-    sorted_ranges = sorted(ranges)
-    merged = [list(sorted_ranges[0])]
-    for start, end in sorted_ranges[1:]:
-        if start <= merged[-1][1] + 1:
-            merged[-1][1] = max(merged[-1][1], end)
-        else:
-            merged.append([start, end])
-    return [tuple(r) for r in merged]
+_IPV4_MAX = (1 << 32) - 1
 
 
 def ranges_to_cidrs(ranges):
     cidrs = []
     for start, end in ranges:
-        try:
-            start_addr = ipaddress.ip_address(start)
-            end_addr = ipaddress.ip_address(end)
-            if type(start_addr) is not type(end_addr):
+        # Split ranges that straddle the IPv4/IPv6 integer boundary
+        # to avoid mismatched-type errors in summarize_address_range
+        sub_ranges = (
+            [(start, _IPV4_MAX), (_IPV4_MAX + 1, end)]
+            if start <= _IPV4_MAX < end
+            else [(start, end)]
+        )
+        for s, e in sub_ranges:
+            try:
+                start_addr = ipaddress.ip_address(s)
+                end_addr = ipaddress.ip_address(e)
+                for network in ipaddress.summarize_address_range(start_addr, end_addr):
+                    cidrs.append(str(network))
+            except Exception:
                 continue
-            for network in ipaddress.summarize_address_range(start_addr, end_addr):
-                cidrs.append(str(network))
-        except Exception:
-            continue
     return cidrs
 
 
