@@ -1,5 +1,15 @@
 [
     {
+        "name": "abuseipdb_s100",
+        "url": "https://raw.githubusercontent.com/borestad/blocklist-abuseipdb/refs/heads/main/abuseipdb-s100-120d.ipv4",
+        "description": "AbuseIPDB 100% confidence abusers (120 days)",
+        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
+        "base_score": 0.95,
+        "confidence": 1.0,
+        "flags": ["is_scanner"],
+        "categories": ["attacks"]
+    },
+    {
         "name": "feodotracker",
         "url": "https://feodotracker.abuse.ch/downloads/ipblocklist.txt",
         "description": "Feodo Tracker - Botnet C&C",
