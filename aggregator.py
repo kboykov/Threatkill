@@ -108,9 +108,48 @@ def process_feeds(feeds):
     return processed
 
 
+def merge_ranges(ranges):
+    if not ranges:
+        return []
+    sorted_ranges = sorted(ranges)
+    merged = [list(sorted_ranges[0])]
+    for start, end in sorted_ranges[1:]:
+        if start <= merged[-1][1] + 1:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return [tuple(r) for r in merged]
+
+
+def ranges_to_cidrs(ranges):
+    cidrs = []
+    for start, end in ranges:
+        try:
+            start_addr = ipaddress.ip_address(start)
+            end_addr = ipaddress.ip_address(end)
+            if type(start_addr) is not type(end_addr):
+                continue
+            for network in ipaddress.summarize_address_range(start_addr, end_addr):
+                cidrs.append(str(network))
+        except Exception:
+            continue
+    return cidrs
+
+
+def write_ipset_file(filename, category, cidrs, timestamp):
+    with open(filename, "w") as f:
+        f.write(f"# Category : {category}\n")
+        f.write(f"# Generated: {time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(timestamp))} UTC\n")
+        f.write(f"# Entries  : {len(cidrs)}\n")
+        for cidr in cidrs:
+            f.write(cidr + "\n")
+
+
 def main():
     with open("feeds.json") as file:
         sources = json.load(file)
+
+    feed_categories = {source["name"]: source.get("categories", []) for source in sources}
 
     print("Downloading feeds...")
     feeds = download_all_feeds(sources)
@@ -118,8 +157,10 @@ def main():
     print("Processing feeds...")
     processed = process_feeds(feeds)
 
+    timestamp = int(time.time())
+
     with open("blocklist.bin", "wb") as f:
-        f.write(struct.pack("<I", int(time.time())))
+        f.write(struct.pack("<I", timestamp))
         f.write(struct.pack("<H", len(processed)))
 
         for list_name, ranges in processed.items():
@@ -139,6 +180,20 @@ def main():
                 prev_from = start
 
     print(f"Saved blocklist.bin with {len(processed)} feeds")
+
+    # Build per-category range sets
+    category_ranges = defaultdict(list)
+    for feed_name, ranges in processed.items():
+        for cat in feed_categories.get(feed_name, []):
+            category_ranges[cat].extend(ranges)
+
+    print("Writing category ipset files...")
+    for category, ranges in sorted(category_ranges.items()):
+        merged = merge_ranges(ranges)
+        cidrs = ranges_to_cidrs(merged)
+        filename = f"{category}.ipset"
+        write_ipset_file(filename, category, cidrs, timestamp)
+        print(f"Saved {filename} ({len(cidrs)} entries)")
 
 
 if __name__ == "__main__":
