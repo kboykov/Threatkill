@@ -22,6 +22,15 @@ jobs:
       - name: Download and process feeds
         run: python aggregator.py
 
+      - name: Commit data to repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet && echo "No changes to commit." || \
+            git commit -m "chore(data): update threat intelligence feeds [$(date -u +"%Y-%m-%d %H:%M UTC")]"
+          git push
+
       - name: Create Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -30,14 +39,14 @@ jobs:
           TAG_NAME="v$(date -u +%Y%m%d-%H%M%S)"
 
           gh release create "$TAG_NAME" \
-            blocklist.bin \
-            attacks.ipset \
-            malware.ipset \
-            botnet.ipset \
-            anonymizer.ipset \
-            spam.ipset \
-            compromised.ipset \
-            infrastructure.ipset \
+            data/blocklist.bin \
+            data/attacks.ipset \
+            data/malware.ipset \
+            data/botnet.ipset \
+            data/anonymizer.ipset \
+            data/spam.ipset \
+            data/compromised.ipset \
+            data/infrastructure.ipset \
             --title "Threatkill Update — $TIMESTAMP" \
             --notes "## Automated threat intelligence update
 
@@ -64,6 +73,14 @@ jobs:
           wget \$BASE/attacks.ipset
           wget \$BASE/malware.ipset
           wget \$BASE/blocklist.bin
+          \`\`\`
+
+          ### Raw file access (always latest)
+
+          \`\`\`bash
+          BASE=https://raw.githubusercontent.com/kboykov/Threatkill/master/data
+          wget \$BASE/attacks.ipset
+          wget \$BASE/malware.ipset
           \`\`\`"
 
       - name: Cleanup old releases
