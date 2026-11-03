@@ -1,0 +1,8 @@
+# Addresses and networks listed here are removed from every output.
+# One IPv4/IPv6 address, CIDR or "start-end" range per line; text after # is ignored.
+# Private, loopback, multicast and documentation space is already excluded
+# automatically (see threatkill/filters.py), so only list public addresses.
+#
+# Example:
+# 198.51.100.10        # monitoring service that probes us
+# 2001:db8:1234::/48   # partner network
