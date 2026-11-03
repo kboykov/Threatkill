@@ -20,16 +20,6 @@
         "categories": ["malware", "botnet"]
     },
     {
-        "name": "urlhaus",
-        "url": "https://urlhaus.abuse.ch/downloads/text_online/",
-        "description": "URLhaus - Malware distribution",
-        "regex": "https?://([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
-        "base_score": 0.9,
-        "confidence": 0.95,
-        "flags": ["is_malware"],
-        "categories": ["malware"]
-    },
-    {
         "name": "dshield",
         "url": "https://www.dshield.org/block.txt",
         "description": "DShield Top Attackers",
@@ -120,16 +110,6 @@
         "categories": ["attacks"]
     },
     {
-        "name": "firehol_datacenters",
-        "url": "https://iplists.firehol.org/files/datacenters.netset",
-        "description": "Datacenter ranges",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.35,
-        "confidence": 0.95,
-        "flags": ["is_datacenter"],
-        "categories": ["infrastructure"]
-    },
-    {
         "name": "firehol_anonymous",
         "url": "https://iplists.firehol.org/files/firehol_anonymous.netset",
         "description": "Anonymous proxies/VPNs",
@@ -211,7 +191,7 @@
     },
     {
         "name": "cinsscore",
-        "url": "http://cinsscore.com/list/ci-badguys.txt",
+        "url": "https://cinsscore.com/list/ci-badguys.txt",
         "description": "CINS Army",
         "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
         "base_score": 0.8,
@@ -238,16 +218,6 @@
         "confidence": 0.9,
         "flags": ["is_malware", "is_botnet", "is_c2_server"],
         "categories": ["malware", "botnet"]
-    },
-    {
-        "name": "alienvault_reputation",
-        "url": "https://reputation.alienvault.com/reputation.generic",
-        "description": "AlienVault OTX IP Reputation",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+)",
-        "base_score": 0.75,
-        "confidence": 0.85,
-        "flags": ["is_scanner"],
-        "categories": ["attacks"]
     },
     {
         "name": "stopforumspam_toxic",
@@ -350,26 +320,6 @@
         "categories": ["attacks"]
     },
     {
-        "name": "packetmail",
-        "url": "https://iplists.firehol.org/files/packetmail.ipset",
-        "description": "PacketMail emerging IPs",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.6,
-        "confidence": 0.75,
-        "flags": ["is_scanner"],
-        "categories": ["attacks"]
-    },
-    {
-        "name": "pushing_inertia",
-        "url": "https://iplists.firehol.org/files/pushing_inertia_blocklist.netset",
-        "description": "Pushing Inertia blocklist",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.6,
-        "confidence": 0.75,
-        "flags": ["is_scanner"],
-        "categories": ["attacks"]
-    },
-    {
         "name": "sblam",
         "url": "https://iplists.firehol.org/files/sblam.ipset",
         "description": "SBLAM spam IPs",
@@ -378,26 +328,6 @@
         "confidence": 0.75,
         "flags": ["is_spammer"],
         "categories": ["spam"]
-    },
-    {
-        "name": "snort_ipfilter",
-        "url": "https://iplists.firehol.org/files/snort_ipfilter.ipset",
-        "description": "Snort IP filter",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.75,
-        "confidence": 0.85,
-        "flags": ["is_scanner"],
-        "categories": ["attacks"]
-    },
-    {
-        "name": "turris_greylist",
-        "url": "https://iplists.firehol.org/files/turris_greylist.ipset",
-        "description": "Turris Greylist",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.6,
-        "confidence": 0.8,
-        "flags": ["is_scanner"],
-        "categories": ["attacks"]
     },
     {
         "name": "voipbl",
@@ -418,16 +348,6 @@
         "confidence": 0.95,
         "flags": ["is_malware", "is_botnet", "is_c2_server"],
         "categories": ["malware", "botnet"]
-    },
-    {
-        "name": "malwaredomainlist",
-        "url": "https://iplists.firehol.org/files/malwaredomainlist.ipset",
-        "description": "Malware Domain List",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.92,
-        "confidence": 0.9,
-        "flags": ["is_malware"],
-        "categories": ["malware"]
     },
     {
         "name": "php_commenters",
@@ -482,28 +402,6 @@
         "categories": ["anonymizer"]
     },
     {
-        "name": "expressvpn",
-        "url": "https://raw.githubusercontent.com/sudesh0sudesh/ExpressVPN-IPs/refs/heads/main/express_ips.csv",
-        "description": "ExpressVPN servers",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+)",
-        "base_score": 0.5,
-        "confidence": 1.0,
-        "provider_name": "ExpressVPN",
-        "flags": ["is_vpn"],
-        "categories": ["anonymizer"]
-    },
-    {
-        "name": "surfshark",
-        "url": "https://raw.githubusercontent.com/sudesh0sudesh/surfshark-IPs/refs/heads/main/surfshark_ips.csv",
-        "description": "Surfshark VPN servers",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+)",
-        "base_score": 0.5,
-        "confidence": 1.0,
-        "provider_name": "Surfshark",
-        "flags": ["is_vpn"],
-        "categories": ["anonymizer"]
-    },
-    {
         "name": "pia",
         "url": "https://serverlist.piaservers.net/vpninfo/servers/v6",
         "description": "Private Internet Access VPN servers",
@@ -537,36 +435,6 @@
         "categories": ["anonymizer"]
     },
     {
-        "name": "cleantalk",
-        "url": "https://iplists.firehol.org/files/cleantalk_updated.ipset",
-        "description": "CleanTalk spam IPs",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.65,
-        "confidence": 0.8,
-        "flags": ["is_spammer"],
-        "categories": ["spam"]
-    },
-    {
-        "name": "cleantalk_top20",
-        "url": "https://iplists.firehol.org/files/cleantalk_top20.ipset",
-        "description": "CleanTalk top 20 spam countries",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.75,
-        "confidence": 0.85,
-        "flags": ["is_spammer"],
-        "categories": ["spam"]
-    },
-    {
-        "name": "cruzit_web_attacks",
-        "url": "https://iplists.firehol.org/files/cruzit_web_attacks.ipset",
-        "description": "Cruzit web attacks",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.75,
-        "confidence": 0.85,
-        "flags": ["is_web_attacker"],
-        "categories": ["attacks"]
-    },
-    {
         "name": "dm_tor",
         "url": "https://iplists.firehol.org/files/dm_tor.ipset",
         "description": "Dan.me.uk Tor nodes",
@@ -577,16 +445,6 @@
         "categories": ["anonymizer"]
     },
     {
-        "name": "dyndns_ponmocup",
-        "url": "https://iplists.firehol.org/files/dyndns_ponmocup.ipset",
-        "description": "DynDNS Ponmocup malware",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.85,
-        "confidence": 0.95,
-        "flags": ["is_malware", "is_botnet", "is_c2_server"],
-        "categories": ["malware", "botnet"]
-    },
-    {
         "name": "et_block",
         "url": "https://iplists.firehol.org/files/et_block.netset",
         "description": "Emerging Threats blocklist",
@@ -595,16 +453,6 @@
         "confidence": 0.9,
         "flags": ["is_scanner"],
         "categories": ["attacks"]
-    },
-    {
-        "name": "et_botcc",
-        "url": "https://iplists.firehol.org/files/et_botcc.ipset",
-        "description": "Emerging Threats botnet C&C",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.92,
-        "confidence": 0.95,
-        "flags": ["is_malware", "is_botnet", "is_c2_server"],
-        "categories": ["malware", "botnet"]
     },
     {
         "name": "et_compromised",
@@ -657,86 +505,6 @@
         "categories": ["attacks"]
     },
     {
-        "name": "hphosts_ats",
-        "url": "https://iplists.firehol.org/files/hphosts_ats.ipset",
-        "description": "hpHosts ad/tracking servers",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.25,
-        "confidence": 0.7,
-        "flags": [],
-        "categories": []
-    },
-    {
-        "name": "hphosts_emd",
-        "url": "https://iplists.firehol.org/files/hphosts_emd.ipset",
-        "description": "hpHosts malware sites",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.92,
-        "confidence": 0.9,
-        "flags": ["is_malware"],
-        "categories": ["malware"]
-    },
-    {
-        "name": "hphosts_exp",
-        "url": "https://iplists.firehol.org/files/hphosts_exp.ipset",
-        "description": "hpHosts exploit sites",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.92,
-        "confidence": 0.9,
-        "flags": ["is_malware"],
-        "categories": ["malware"]
-    },
-    {
-        "name": "hphosts_fsa",
-        "url": "https://iplists.firehol.org/files/hphosts_fsa.ipset",
-        "description": "hpHosts fraud sites",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.85,
-        "confidence": 0.85,
-        "flags": ["is_spammer"],
-        "categories": ["spam"]
-    },
-    {
-        "name": "hphosts_psh",
-        "url": "https://iplists.firehol.org/files/hphosts_psh.ipset",
-        "description": "hpHosts phishing sites",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.9,
-        "confidence": 0.9,
-        "flags": ["is_phishing"],
-        "categories": ["malware"]
-    },
-    {
-        "name": "iblocklist_abuse_palevo",
-        "url": "https://iplists.firehol.org/files/iblocklist_abuse_palevo.netset",
-        "description": "iBlocklist Palevo worm",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.85,
-        "confidence": 0.95,
-        "flags": ["is_malware", "is_botnet", "is_c2_server"],
-        "categories": ["malware", "botnet"]
-    },
-    {
-        "name": "iblocklist_abuse_spyeye",
-        "url": "https://iplists.firehol.org/files/iblocklist_abuse_spyeye.netset",
-        "description": "iBlocklist SpyEye malware",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.85,
-        "confidence": 0.95,
-        "flags": ["is_malware", "is_botnet", "is_c2_server"],
-        "categories": ["malware", "botnet"]
-    },
-    {
-        "name": "iblocklist_abuse_zeus",
-        "url": "https://iplists.firehol.org/files/iblocklist_abuse_zeus.netset",
-        "description": "iBlocklist Zeus trojan",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.85,
-        "confidence": 0.95,
-        "flags": ["is_malware", "is_botnet", "is_c2_server"],
-        "categories": ["malware", "botnet"]
-    },
-    {
         "name": "iblocklist_onion_router",
         "url": "https://iplists.firehol.org/files/iblocklist_onion_router.netset",
         "description": "iBlocklist Tor routers",
@@ -744,46 +512,6 @@
         "base_score": 0.38,
         "confidence": 1.0,
         "flags": ["is_tor", "is_anonymizer"],
-        "categories": ["anonymizer"]
-    },
-    {
-        "name": "iblocklist_spamhaus_drop",
-        "url": "https://iplists.firehol.org/files/iblocklist_spamhaus_drop.netset",
-        "description": "iBlocklist Spamhaus DROP",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.85,
-        "confidence": 0.95,
-        "flags": ["is_spammer"],
-        "categories": ["spam"]
-    },
-    {
-        "name": "nixspam",
-        "url": "https://iplists.firehol.org/files/nixspam.ipset",
-        "description": "NiX Spam blocklist",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.7,
-        "confidence": 0.8,
-        "flags": ["is_spammer"],
-        "categories": ["spam"]
-    },
-    {
-        "name": "ri_connect_proxies",
-        "url": "https://iplists.firehol.org/files/ri_connect_proxies.ipset",
-        "description": "Rosinstrument CONNECT proxies",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.4,
-        "confidence": 0.75,
-        "flags": ["is_proxy"],
-        "categories": ["anonymizer"]
-    },
-    {
-        "name": "ri_web_proxies",
-        "url": "https://iplists.firehol.org/files/ri_web_proxies.ipset",
-        "description": "Rosinstrument web proxies",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 0.4,
-        "confidence": 0.75,
-        "flags": ["is_proxy"],
         "categories": ["anonymizer"]
     },
     {
@@ -827,36 +555,6 @@
         "categories": ["infrastructure"]
     },
     {
-        "name": "datacenter_asns",
-        "url": "https://raw.githubusercontent.com/brianhama/bad-asn-list/refs/heads/master/bad-asn-list.csv",
-        "description": "Datacenter ASN ranges",
-        "regex": "^(?![#;/ASN])([0-9]+)",
-        "base_score": 0.35,
-        "confidence": 0.85,
-        "flags": ["is_datacenter"],
-        "categories": ["infrastructure"]
-    },
-    {
-        "name": "globules_vpn_ipv4",
-        "url": "https://raw.githubusercontent.com/globules-io/vpns-ip-ranges/master/vpn-ipv4.txt",
-        "description": "Globules VPN & datacenter IPv4 ranges",
-        "regex": "^(?![#;/])([0-9.]+(?:/\\d+)?)",
-        "base_score": 0.5,
-        "confidence": 0.85,
-        "flags": ["is_vpn"],
-        "categories": ["anonymizer"]
-    },
-    {
-        "name": "globules_vpn_ipv6",
-        "url": "https://raw.githubusercontent.com/globules-io/vpns-ip-ranges/master/vpn-ipv6.txt",
-        "description": "Globules VPN & datacenter IPv6 ranges",
-        "regex": "^(?![#;/])([0-9a-fA-F:]+(?:/\\d+)?)",
-        "base_score": 0.5,
-        "confidence": 0.85,
-        "flags": ["is_vpn"],
-        "categories": ["anonymizer"]
-    },
-    {
         "name": "jhassine_datacenter_ipv4",
         "url": "https://raw.githubusercontent.com/jhassine/server-ip-addresses/master/data/datacenters.csv",
         "description": "Server IP addresses - datacenter ranges",
@@ -865,46 +563,6 @@
         "confidence": 0.9,
         "flags": ["is_datacenter"],
         "categories": ["infrastructure"]
-    },
-    {
-        "name": "jetkai_proxy_http",
-        "url": "https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-http.txt",
-        "description": "Jetkai HTTP proxies",
-        "regex": "^([0-9.]+):",
-        "base_score": 0.4,
-        "confidence": 0.75,
-        "flags": ["is_proxy"],
-        "categories": ["anonymizer"]
-    },
-    {
-        "name": "jetkai_proxy_https",
-        "url": "https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-https.txt",
-        "description": "Jetkai HTTPS proxies",
-        "regex": "^([0-9.]+):",
-        "base_score": 0.4,
-        "confidence": 0.75,
-        "flags": ["is_proxy"],
-        "categories": ["anonymizer"]
-    },
-    {
-        "name": "jetkai_proxy_socks4",
-        "url": "https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-socks4.txt",
-        "description": "Jetkai SOCKS4 proxies",
-        "regex": "^([0-9.]+):",
-        "base_score": 0.4,
-        "confidence": 0.75,
-        "flags": ["is_proxy"],
-        "categories": ["anonymizer"]
-    },
-    {
-        "name": "jetkai_proxy_socks5",
-        "url": "https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-socks5.txt",
-        "description": "Jetkai SOCKS5 proxies",
-        "regex": "^([0-9.]+):",
-        "base_score": 0.4,
-        "confidence": 0.75,
-        "flags": ["is_proxy"],
-        "categories": ["anonymizer"]
     },
     {
         "name": "thespeedx_proxy_http",
@@ -1077,16 +735,6 @@
         "categories": ["infrastructure"]
     },
     {
-        "name": "c2tracker_all",
-        "url": "https://raw.githubusercontent.com/montysecurity/C2-Tracker/main/data/all.txt",
-        "description": "C2 Tracker - All C2 servers, malware, botnets",
-        "regex": "^(?![#;/])([0-9a-fA-F:.]+(?:/\\d+)?)",
-        "base_score": 1.0,
-        "confidence": 0.95,
-        "flags": ["is_malware", "is_botnet", "is_c2_server"],
-        "categories": ["malware", "botnet"]
-    },
-    {
         "name": "curbengh_botnet",
         "url": "https://malware-filter.gitlab.io/malware-filter/botnet-filter.txt",
         "description": "Botnet C2 IPs from Feodo Tracker",
@@ -1217,37 +865,6 @@
         "categories": ["infrastructure"]
     },
     {
-        "name": "youngjun_chang_vpn_ipv4",
-        "url": "https://raw.githubusercontent.com/youngjun-chang/VPNs/master/vpn-ipv4.txt",
-        "description": "Comprehensive VPN & datacenter IPv4 list",
-        "regex": "^(?![#;/])([0-9.]+(?:/\\d+)?)",
-        "base_score": 0.5,
-        "confidence": 0.85,
-        "flags": ["is_vpn"],
-        "categories": ["anonymizer"]
-    },
-    {
-        "name": "youngjun_chang_vpn_ipv6",
-        "url": "https://raw.githubusercontent.com/youngjun-chang/VPNs/master/vpn-ipv6.txt",
-        "description": "Comprehensive VPN & datacenter IPv6 list",
-        "regex": "^(?![#;/])([0-9a-fA-F:]+(?:/\\d+)?)",
-        "base_score": 0.5,
-        "confidence": 0.85,
-        "flags": ["is_vpn"],
-        "categories": ["anonymizer"]
-    },
-    {
-        "name": "pia_ranges",
-        "url": "https://raw.githubusercontent.com/silvether/pia-vpn-ranges/master/pia-ranges",
-        "description": "Private Internet Access VPN IP ranges",
-        "regex": "^([0-9.]+(?:/\\d+)?)",
-        "base_score": 0.5,
-        "confidence": 1.0,
-        "provider_name": "Private Internet Access",
-        "flags": ["is_vpn"],
-        "categories": ["anonymizer"]
-    },
-    {
         "name": "cyberghost_proxies",
         "url": "https://gist.githubusercontent.com/Windows81/17e75698d4fe349bcfb71d1c1ca537d4/raw",
         "description": "CyberGhost HTTPS proxy hosts",
@@ -1255,17 +872,6 @@
         "base_score": 0.5,
         "confidence": 1.0,
         "provider_name": "CyberGhost",
-        "flags": ["is_vpn"],
-        "categories": ["anonymizer"]
-    },
-    {
-        "name": "astrill_vpn",
-        "url": "https://storage.googleapis.com/spur-astrill-vpn/ips.txt",
-        "description": "Astrill VPN IP addresses (Spur dataset)",
-        "regex": "^(?![#;/])([0-9.]+(?:/\\d+)?)",
-        "base_score": 0.5,
-        "confidence": 1.0,
-        "provider_name": "Astrill",
         "flags": ["is_vpn"],
         "categories": ["anonymizer"]
     },
