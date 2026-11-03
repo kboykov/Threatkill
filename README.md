@@ -5,13 +5,13 @@
   |_| |_||_|_| \___\__,_| |_/\_\_||_|_|
 ```
 
-> Block malicious traffic at the source — 128 feeds, 7 threat categories, updated daily.
+> Block malicious traffic at the source — 89 maintained feeds, 7 threat categories, updated daily.
 
 ---
 
 ## What is this?
 
-**Threatkill** is an automated IP threat intelligence aggregator. Every day it pulls from 128 open-source security feeds, deduplicates and merges the data, and publishes ready-to-use firewall lists alongside a compact binary database.
+**Threatkill** is an automated IP threat intelligence aggregator. Every day it pulls from open-source security feeds, validates and deduplicates the data, strips addresses that must never be blocked, and publishes ready-to-use firewall lists alongside a compact binary database.
 
 No vendor lock-in. No API keys. Drop the files into your firewall and go.
 
@@ -19,26 +19,35 @@ No vendor lock-in. No API keys. Drop the files into your firewall and go.
 
 ## Downloads
 
-Each release contains the full binary database and one ipset file per threat category.
+Everything is published as assets of the latest [GitHub release](https://github.com/kboykov/Threatkill/releases/latest). Generated data is no longer committed to the repository, so old `raw.githubusercontent.com/.../master/data/...` links no longer work. Use the release URLs below.
 
 | Asset | Format | Use case |
 |---|---|---|
-| `blocklist.bin` | Binary (delta-encoded) | Programmatic lookups, scoring |
-| `attacks.ipset` | Plain CIDR list | Scanners, brute-force, web attacks |
-| `malware.ipset` | Plain CIDR list | C2 servers, exploit hosts, phishing |
-| `botnet.ipset` | Plain CIDR list | Botnet command & control nodes |
-| `anonymizer.ipset` | Plain CIDR list | Tor, VPNs, open proxies |
-| `spam.ipset` | Plain CIDR list | Spam networks, forum abusers |
-| `compromised.ipset` | Plain CIDR list | Hijacked/compromised hosts |
-| `infrastructure.ipset` | Plain CIDR list | Datacenters, CDNs, cloud ranges |
+| `<category>.restore` | `ipset restore` script | Linux ipset/iptables: atomic reload of IPv4 and IPv6 sets |
+| `<category>.nft` | `nft -f` script | nftables: atomic reload of IPv4 and IPv6 sets |
+| `<category>.v4.ipset` / `.v6.ipset` | Plain CIDR list, one family | Firewalls that take a URL list (FortiGate, pfSense, OPNsense, MikroTik…) |
+| `<category>.ipset` | Plain CIDR list, IPv4 + IPv6 | Backwards-compatible combined list |
+| `blocklist.bin` | Binary (delta-encoded, per feed) | Programmatic lookups and scoring |
+| `manifest.json` | JSON | Per-feed status, category totals, SHA-256 of every file |
+
+Categories:
+
+| Category | Contents | Example feeds |
+|---|---|---|
+| `attacks` | Scanners, brute-force, web attackers | AbuseIPDB, DShield, FireHOL L1/L2, blocklist.de, CINS |
+| `malware` | Malware C2, exploit hosts, phishing | Feodo Tracker, ThreatFox, HaGeZi TIF |
+| `botnet` | Botnet command & control | cybercrime-tracker, curbengh botnet, Threatview C2 |
+| `anonymizer` | Tor nodes, VPN servers, open proxies | Tor Project, NordVPN, Mullvad, ProtonVPN, proxy lists |
+| `spam` | Spam networks and forum abusers | Spamhaus DROP/DROPv6, StopForumSpam, sblam |
+| `compromised` | Compromised and hijacked hosts | Emerging Threats compromised |
+| `infrastructure` | Datacenters, CDNs, cloud providers | AWS, GCP, Cloudflare, DigitalOcean |
+
+> `infrastructure` and `anonymizer` are context, not verdicts. Together they cover hundreds of millions of addresses, including the clouds and CDNs your own users and services depend on. Use them for scoring or for specific services (e.g. admin panels), not as a global inbound drop.
 
 ```bash
-# Always points to the latest release
 BASE=https://github.com/kboykov/Threatkill/releases/latest/download
-
-wget $BASE/attacks.ipset
-wget $BASE/malware.ipset
-wget $BASE/blocklist.bin
+curl -fsSLO $BASE/attacks.restore
+curl -fsSLO $BASE/manifest.json
 ```
 
 ---
@@ -47,101 +56,80 @@ wget $BASE/blocklist.bin
 
 ### Linux — ipset / iptables
 
+`ipset -exist restore` builds a fresh set next to the live one and swaps them atomically, so the firewall never sees a half-loaded or empty list. It loads hundreds of thousands of entries in seconds, unlike a per-entry `ipset add` loop.
+
 ```bash
-# Install ipset if needed
 apt-get install ipset
 
-# Create a set and load a category
-ipset create threatkill_attacks hash:net maxelem 1000000
-awk '!/^#/' attacks.ipset | while read cidr; do
-  ipset add threatkill_attacks "$cidr" 2>/dev/null
-done
+curl -fsSLo /tmp/attacks.restore \
+  https://github.com/kboykov/Threatkill/releases/latest/download/attacks.restore \
+  && ipset -exist restore < /tmp/attacks.restore
 
-# Drop inbound traffic from known attackers
-iptables -I INPUT -m set --match-set threatkill_attacks src -j DROP
+# Sets are named tk_<category>_v4 and tk_<category>_v6
+iptables  -I INPUT -m set --match-set tk_attacks_v4 src -j DROP
+ip6tables -I INPUT -m set --match-set tk_attacks_v6 src -j DROP
 ```
+
+If the download fails, `&&` skips the restore and the previous set stays in place. Re-run the same two commands from cron to refresh.
 
 ### nftables
 
-```nft
-table inet threatkill {
-  set attacks {
-    type ipv4_addr
-    flags interval
-    auto-merge
-  }
-
-  chain input {
-    type filter hook input priority 0; policy accept;
-    ip saddr @attacks drop
-  }
-}
-```
+Each `.nft` file creates (if needed) and refills `<category>_v4` and `<category>_v6` sets in table `inet threatkill`, in a single transaction.
 
 ```bash
-# Populate the set
-awk '!/^#/' attacks.ipset | sed 's/^/add element inet threatkill attacks { /' \
-  | sed 's/$/ }/' | nft -f -
+curl -fsSLo /tmp/attacks.nft \
+  https://github.com/kboykov/Threatkill/releases/latest/download/attacks.nft \
+  && nft -f /tmp/attacks.nft
+```
+
+Then reference the sets from your ruleset (only once):
+
+```bash
+nft add chain inet threatkill input '{ type filter hook input priority -10; policy accept; }'
+nft add rule inet threatkill input ip  saddr @attacks_v4 drop
+nft add rule inet threatkill input ip6 saddr @attacks_v6 drop
 ```
 
 ### Python — binary database
 
+The reader in [`threatkill/binfmt.py`](threatkill/binfmt.py) has no dependencies:
+
 ```python
-import struct, ipaddress
+import bisect, ipaddress
+from threatkill.binfmt import read
 
-def read_varint(f):
-    result = shift = 0
-    while True:
-        byte = f.read(1)[0]
-        result |= (byte & 0x7F) << shift
-        if not (byte & 0x80):
-            return result
-        shift += 7
+timestamp, feeds = read("blocklist.bin")
 
-def load_blocklist(path="blocklist.bin"):
-    feeds = {}
-    with open(path, "rb") as f:
-        timestamp = struct.unpack("<I", f.read(4))[0]
-        for _ in range(struct.unpack("<H", f.read(2))[0]):
-            name = f.read(struct.unpack("<B", f.read(1))[0]).decode()
-            ranges, cur = [], 0
-            for _ in range(struct.unpack("<I", f.read(4))[0]):
-                cur += read_varint(f)
-                ranges.append((cur, cur + read_varint(f)))
-            feeds[name] = ranges
-    return feeds, timestamp
+def lookup(ip):
+    addr = ipaddress.ip_address(ip)
+    n, hits = int(addr), []
+    for feed in feeds.values():
+        ranges = feed.v4 if addr.version == 4 else feed.v6
+        i = bisect.bisect_right(ranges, (n, float("inf"))) - 1
+        if i >= 0 and ranges[i][0] <= n <= ranges[i][1]:
+            hits.append((feed.name, feed.base_score, feed.categories))
+    return hits
 
-def lookup(feeds, ip):
-    n = int(ipaddress.ip_address(ip))
-    return [name for name, ranges in feeds.items()
-            if any(s <= n <= e for s, e in ranges)]
-
-feeds, ts = load_blocklist()
-print(lookup(feeds, "1.0.68.149"))
-# ['abuseipdb_s100', 'firehol_level1', ...]
+print(lookup("1.0.68.149"))
 ```
 
 ---
 
-## Threat Categories
+## Safety
 
-Feeds are tagged with categories and flags in `feeds.json`. The aggregator uses the `categories` field to group IPs into separate ipset outputs.
+Every run goes through these checks before anything is published:
 
-| Category | Flags included | Example feeds |
-|---|---|---|
-| `attacks` | `is_scanner`, `is_brute_force`, `is_web_attacker` | AbuseIPDB, DShield, FireHOL L1/L2, blocklist.de |
-| `malware` | `is_malware`, `is_phishing` | Feodo Tracker, ThreatFox, C2 Tracker, URLhaus |
-| `botnet` | `is_botnet`, `is_c2_server` | ET BotCC, cybercrime, iblocklist Zeus/SpyEye |
-| `anonymizer` | `is_tor`, `is_vpn`, `is_proxy`, `is_anonymizer` | Tor Project, NordVPN, Mullvad, ProtonVPN |
-| `spam` | `is_spammer`, `is_forum_spammer` | Spamhaus DROP, CleanTalk, nixspam |
-| `compromised` | `is_compromised` | Emerging Threats compromised, ET compromised |
-| `infrastructure` | `is_datacenter`, `is_cdn`, `is_cloud`, `is_anycast` | AWS, GCP, Cloudflare, DigitalOcean |
+- **Never-block filter.** Private, loopback, link-local, CGNAT, multicast, reserved and documentation ranges (RFC 1918/6598/6890 etc.) are removed from every feed. For IPv6 only global unicast (`2000::/3`) is kept. Add your own addresses to [`allowlist.txt`](allowlist.txt) to exclude them from all outputs.
+- **Breadth limit.** A single upstream entry wider than IPv4 `/8` or IPv6 `/16` is discarded as an error.
+- **Per-feed fallback.** If a feed fails to download, returns nothing, or shrinks by more than half overnight, the previous release's data for that feed is reused. Empty or failed feeds fall back for up to 7 runs. Sudden shrinkage is accepted after 2 consecutive runs, in case it's genuine. The status is recorded in `manifest.json` and the release notes.
+- **Run-level guard.** The run fails without publishing if more than 25% of feeds fail, or if any category drops below 40% or grows past 300% of its previous size. A maintainer can override this with the `force` input of the workflow.
+- **No-op releases are skipped.** A release is only created when the data actually changed.
 
 ---
 
 ## Feed Configuration
 
-All 128 sources are defined in `feeds.json`. Each entry looks like:
+Sources are defined in [`feeds.json`](feeds.json) and validated on every run:
 
 ```json
 {
@@ -158,69 +146,77 @@ All 128 sources are defined in `feeds.json`. Each entry looks like:
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | string | Unique feed identifier |
-| `url` | string | Remote source URL |
-| `regex` | string | Pattern to extract IPs/CIDRs from raw content |
-| `base_score` | float 0–1 | Threat severity weight |
-| `confidence` | float 0–1 | Source reliability |
-| `flags` | string[] | Specific threat type indicators |
-| `categories` | string[] | Output grouping — determines which `.ipset` file receives these IPs |
+| `name` | string | Unique identifier, `[a-z0-9_]` |
+| `url` | string | Source URL; must be `https://` unless `"allow_http": true` |
+| `regex` | string | Pattern with at least one capture group; the first non-empty group is the IP/CIDR/range |
+| `base_score` | float 0–1 | Threat severity weight (stored in `blocklist.bin`) |
+| `confidence` | float 0–1 | Source reliability (stored in `blocklist.bin`) |
+| `flags` | string[] | Threat type indicators (stored in `blocklist.bin`) |
+| `categories` | string[] | Required; which category outputs receive this feed |
+| `provider_name` | string | Optional, for VPN provider lists |
+
+Feeds whose upstream stopped updating are removed. The 2026-11 audit dropped 39 sources: dead endpoints (URLhaus now requires an API key, C2-Tracker is archived), hpHosts (frozen since 2019), and lists not refreshed in over a year. Upstreams that send a `Last-Modified` header older than 180 days are flagged in each release's notes.
 
 ---
 
 ## How It Works
 
 ```
-1. feeds.json        — 128 source definitions with regex, score, flags, categories
-        │
-        ▼
-2. aggregator.py     — parallel download (10 workers), regex parse, IP→int conversion
-        │
-        ▼
-3. process_feeds()   — deduplicate + sort ranges per feed
-        │
-        ├──► blocklist.bin          (all feeds, delta-encoded binary)
-        │
-        └──► merge by category
-                  │
-                  ├──► attacks.ipset
-                  ├──► malware.ipset
-                  ├──► botnet.ipset
-                  ├──► anonymizer.ipset
-                  ├──► spam.ipset
-                  ├──► compromised.ipset
-                  └──► infrastructure.ipset
+feeds.json ──► fetch (10 workers, retries) ──► parse (regex → IPv4 / IPv6 ranges)
+                                                   │
+                                                   ▼
+                                    never-block filter + allowlist
+                                                   │
+                                previous release ──►  per-feed fallback
+                                                   │
+                                                   ▼
+                                     merge per category ──► run-level guard
+                                                   │
+           ┌───────────────┬───────────────┬───────┴───────┬──────────────┐
+           ▼               ▼               ▼               ▼              ▼
+     blocklist.bin   <cat>.restore     <cat>.nft    <cat>[.v4|.v6].ipset  manifest.json
 ```
 
-`blocklist.bin` stores each feed separately with delta-encoded varint ranges, keeping the file small (~12 MB for 128 feeds) and enabling per-feed lookups. The ipset files merge all ranges across feeds sharing a category into the minimal set of CIDRs using `ipaddress.summarize_address_range`.
+Run it locally with only the Python standard library (3.10+):
 
-### Binary Format
+```bash
+python aggregator.py --previous path/to/last-release --out data
+python -m unittest discover -s tests -t .
+```
+
+### Binary Format (version 2)
 
 ```
-[u32 LE]  Unix timestamp
-[u16 LE]  Number of feeds
+[4 bytes] "TKBL" magic
+[u8]      format version (2)
+[u64 LE]  Unix timestamp
+[u8]      category count, then per category: [u8 len][UTF-8 name]
+[u8]      flag count,     then per flag:     [u8 len][UTF-8 name]
+[u16 LE]  feed count
   per feed:
-    [u8]    Name length
-    [bytes] Feed name (UTF-8)
-    [u32]   Number of ranges
-      per range:
-        [varint] start − previous_start  (delta)
-        [varint] end − start             (size)
+    [u8 len][UTF-8 name]
+    [u8]      base_score × 100
+    [u8]      confidence × 100
+    [u64 LE]  category bitmask
+    [u64 LE]  flag bitmask
+    [u32 LE]  IPv4 range count, then per range: [varint start − previous start][varint end − start]
+    [u32 LE]  IPv6 range count, same encoding
 ```
+
+IPv4 and IPv6 are stored separately, so a lookup can't confuse `::5` with `0.0.0.5`. Files without the magic are version 1 (released before November 2026) and are still readable by `threatkill.binfmt.read`.
 
 ---
 
 ## Stats
 
+Current numbers for every category and feed are in each release's `manifest.json` and release notes. As of November 2026:
+
 | Metric | Value |
 |---|---|
-| Feeds | 128 |
-| Total entries | ~5.0M |
-| IPv4 addresses | ~4.7M |
-| CIDR ranges | ~552K |
-| IPv6 entries | ~6K |
-| Binary file size | ~12 MB |
-| Update frequency | Daily (00:00 UTC) |
+| Feeds | 89 |
+| CIDR entries (all categories) | ~3.6M |
+| `blocklist.bin` size | ~14 MB |
+| Update frequency | Daily (scheduled at 00:00 UTC; GitHub often starts it a few hours later) |
 
 ---
 
