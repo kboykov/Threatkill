@@ -2,107 +2,97 @@ name: Update Feeds
 
 on:
   schedule:
+    # GitHub usually starts scheduled runs a few hours late; outputs carry their own timestamp.
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      force:
+        description: Publish even if validation fails
+        type: boolean
+        default: false
+  push:
+    branches: [master]
+    paths: ['threatkill/**', 'tests/**', 'aggregator.py']
+  pull_request:
+    paths: ['threatkill/**', 'tests/**', 'aggregator.py', 'feeds.json']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Unit tests
+        run: python -m unittest discover -s tests -t . -v
+
   update:
+    needs: test
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          python-version: '3.12'
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Download and process feeds
-        run: python aggregator.py
-
-      - name: Commit data to repository
+      - name: Fetch previous release state
+        # Used to reuse data for feeds that fail today and to detect regressions.
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
-          git diff --cached --quiet && echo "No changes to commit." || \
-            git commit -m "chore(data): update threat intelligence feeds [$(date -u +"%Y-%m-%d %H:%M UTC")]"
-          git push
+          mkdir -p prev
+          gh release download --dir prev --pattern blocklist.bin || echo "No previous blocklist.bin"
+          gh release download --dir prev --pattern manifest.json || echo "No previous manifest.json"
 
-      - name: Create Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download, validate and build
         run: |
-          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
-          TAG_NAME="v$(date -u +%Y%m%d-%H%M%S)"
+          FORCE=""
+          if [ "${{ inputs.force }}" = "true" ]; then FORCE="--force"; fi
+          python aggregator.py --previous prev --out data $FORCE
 
-          gh release create "$TAG_NAME" \
-            data/blocklist.bin \
-            data/attacks.ipset \
-            data/malware.ipset \
-            data/botnet.ipset \
-            data/anonymizer.ipset \
-            data/spam.ipset \
-            data/compromised.ipset \
-            data/infrastructure.ipset \
-            --title "Threatkill Update — $TIMESTAMP" \
-            --notes "## Automated threat intelligence update
-
-          **Timestamp:** $TIMESTAMP
-          **Feeds:** 128 sources processed
-
-          ### Assets
-
-          | File | Description |
-          |---|---|
-          | \`blocklist.bin\` | Full binary database (all feeds, delta-encoded) |
-          | \`attacks.ipset\` | Scanners, brute-force, web attackers |
-          | \`malware.ipset\` | Malware C2, exploit hosts, phishing |
-          | \`botnet.ipset\` | Botnet command & control nodes |
-          | \`anonymizer.ipset\` | Tor nodes, VPN servers, open proxies |
-          | \`spam.ipset\` | Spam networks and forum abusers |
-          | \`compromised.ipset\` | Compromised and hijacked hosts |
-          | \`infrastructure.ipset\` | Datacenters, CDNs, cloud providers |
-
-          ### Quick download
-
-          \`\`\`bash
-          BASE=https://github.com/kboykov/Threatkill/releases/latest/download
-          wget \$BASE/attacks.ipset
-          wget \$BASE/malware.ipset
-          wget \$BASE/blocklist.bin
-          \`\`\`
-
-          ### Raw file access (always latest)
-
-          \`\`\`bash
-          BASE=https://raw.githubusercontent.com/kboykov/Threatkill/master/data
-          wget \$BASE/attacks.ipset
-          wget \$BASE/malware.ipset
-          \`\`\`"
-
-      - name: Cleanup old releases
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check for changes
+        id: changes
         run: |
-          RELEASES_JSON=$(gh release list --limit 100 --json tagName,createdAt)
-          TAGS=($(echo "$RELEASES_JSON" | jq -r 'sort_by(.createdAt) | .[].tagName'))
-          TOTAL=${#TAGS[@]}
-          KEEP=3
-
-          if [ "$TOTAL" -le "$KEEP" ]; then
-            echo "No releases to delete (total $TOTAL, keeping $KEEP)."
-            exit 0
+          NEW=$(jq -r .content_hash data/manifest.json)
+          OLD=$(jq -r '.content_hash // empty' prev/manifest.json 2>/dev/null || true)
+          if [ "$NEW" = "$OLD" ]; then
+            echo "Data unchanged since the last release ($NEW); skipping."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-          DELETE_COUNT=$((TOTAL - KEEP))
-          echo "Deleting $DELETE_COUNT old release(s), keeping $KEEP newest."
+      - name: Create release
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          TAG="v$(date -u +%Y%m%d-%H%M%S)"
+          python -m threatkill.notes data/manifest.json "$GITHUB_REPOSITORY" > release-notes.md
+          gh release create "$TAG" data/* \
+            --title "Threatkill Update — $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            --notes-file release-notes.md
 
-          for i in $(seq 0 $((DELETE_COUNT - 1))); do
-            TAG=${TAGS[$i]}
-            echo "Deleting old release: $TAG"
-            gh release delete "$TAG" --yes 2>/dev/null || true
-            git push --delete origin "$TAG" 2>/dev/null || true
+      - name: Clean up old releases
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          KEEP=3
+          mapfile -t TAGS < <(gh release list --limit 100 --json tagName,createdAt \
+            | jq -r 'sort_by(.createdAt) | reverse | .[].tagName')
+          for TAG in "${TAGS[@]:$KEEP}"; do
+            echo "Deleting old release $TAG"
+            gh release delete "$TAG" --yes --cleanup-tag || echo "Could not delete $TAG"
           done
