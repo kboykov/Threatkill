@@ -90,8 +90,8 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         run: |
           KEEP=3
-          mapfile -t TAGS < <(gh release list --limit 100 --json tagName,createdAt \
-            | jq -r 'sort_by(.createdAt) | reverse | .[].tagName')
+          mapfile -t TAGS < <(gh release list --limit 100 --json tagName,publishedAt \
+            | jq -r 'sort_by(.publishedAt) | reverse | .[].tagName')
           for TAG in "${TAGS[@]:$KEEP}"; do
             echo "Deleting old release $TAG"
             gh release delete "$TAG" --yes --cleanup-tag || echo "Could not delete $TAG"
